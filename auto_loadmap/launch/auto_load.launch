@@ -1,0 +1,13 @@
+<launch>
+  <arg name="map_path" value="/workspaces/fusion_ekf/Localization_Indoor/src/auto_loadmap/map/config" />
+  
+  <node pkg="auto_loadmap" type="auto_load_map" name="auto_load_map" output="screen" >
+    <param name="map_config_path" value="$(arg map_path)"/>
+    <param name="base_pcd_path" value="$(arg map_path)" />
+    <!-- <remap from="gnss_pose_cov" to="/sensing/gnss/pose_with_covariance" /> -->
+    <remap from="gnss_pose_cov" to="/gnss_pose_cov" />
+
+  </node>
+  
+</launch>
+
