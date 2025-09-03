@@ -15,7 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
   pcl_ros
   pcl_conversions
   vehicle_localization_util
-  ndt_omp
+  # ndt_omp
 )
 
 find_package(GeographicLib REQUIRED)

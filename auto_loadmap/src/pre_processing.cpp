@@ -2,48 +2,31 @@
 
 Preprocessing::Preprocessing(ros::NodeHandle nh, ros::NodeHandle private_nh)
     : nh_(nh), private_nh_(private_nh),
-      object_pre_(new pclomp::NormalDistributionsTransform<PointT, PointT>()),
-      transformed_cloud(new pcl::PointCloud<pcl::PointXYZI>),
       storage_points_around(new pcl::PointCloud<pcl::PointXYZI>),
       storage_points_enu(new pcl::PointCloud<pcl::PointXYZI>), map_frame("enu"),
-      storage_points_MGRS(new pcl::PointCloud<pcl::PointXYZI>), tfListener(tfBuffer)
+ tfListener(tfBuffer)
 {
-    object_pre_->setResolution(2.0);
-    object_pre_->setStepSize(0.1);
-    object_pre_->setTransformationEpsilon(0.01);
-    object_pre_->setMaximumIterations(30);
-    object_pre_->setNumThreads(4);
     setupPublishers();
     setupSubscribers();
     setupServices();
     private_nh_.param<float>("radius_max", radius_max_, 30.0);
-    private_nh_.param<float>("filter_point_lidar", filter_point_, 3.0);
+
     private_nh_.param<double>("downsample_resolution", downsample_resolution, 0.3);
-    private_nh_.param<int>("particles_num", temp_particles_num, 500);
-    private_nh_.param<int>("n_startup_trials", temp_n_startup_trials, 50);
-    params_.initial_pose_estimation.particles_num = temp_particles_num;
-    params_.initial_pose_estimation.n_startup_trials = temp_n_startup_trials;
-    params_.frame.map_frame = map_frame;
 }
 Preprocessing::~Preprocessing() {};
 void Preprocessing::setupPublishers()
 {
     point_enu_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/map_enu", 10);
     point_enu_around = nh_.advertise<sensor_msgs::PointCloud2>("/map_enu_around", 10);
-    points_monte_aligned_pub = nh_.advertise<sensor_msgs::PointCloud2>("/aligned_points_monte", 5, false);
-    marker_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("monte_markers", 1);
-    init_monte_ = nh_.advertise<geometry_msgs::PoseWithCovarianceStamped>("/initialpose", 1);
 }
 void Preprocessing::setupSubscribers()
 {
     odom_enu_sub_ = nh_.subscribe("/odom_align", 1, &Preprocessing::callbackCreatePointAround, this);
-    points_sub = nh_.subscribe("velodyne_points", 5, &Preprocessing::points_callback, this);
 }
 void Preprocessing::setupServices()
 {
     points_update_server_ = nh_.advertiseService("points_update_service", &Preprocessing::serviceUpdate, this);
     send_local_map_client = nh_.serviceClient<vehicle_localization_util::SetLocalMap>("map_enu_update");
-    first_point_server = nh_.advertiseService("monte_align_srv", &Preprocessing::serviceInit, this);
 }
 bool Preprocessing::serviceUpdate(
     vehicle_localization_util::updatePoints::Request &req,
@@ -118,15 +101,9 @@ bool Preprocessing::serviceUpdate(
         pcl::toROSMsg(*storage_points_enu, output);
         output.header.stamp = ros::Time::now();
         output.header.frame_id = "enu";
-        point_enu_pub_.publish(output);
-        // if (!init_)
-        // {
-        std::lock_guard<std::mutex> lock_target(monte_init_);
+        point_enu_pub_.publish(output);  
         storage_points_enu->header.frame_id = "enu";
-        object_pre_->setInputTarget(storage_points_enu);
-        ROS_INFO("setInputTarget success");
-        init_ = true;
-        // }
+
         vehicle_localization_util::SetLocalMap srv;
         if (!removed_cloud_enu->empty())
         {
@@ -174,150 +151,6 @@ bool Preprocessing::serviceUpdate(
         ROS_ERROR("[serviceUpdate] Exception: %s", e.what());
         res.success = false;
         return false;
-    }
-}
-bool Preprocessing::serviceInit(vehicle_localization_util::PoseWithCovarianceStamped::Request &req,
-                                vehicle_localization_util::PoseWithCovarianceStamped::Response &res)
-{
-    std::lock_guard<std::mutex> lock(monte_init_);
-    ROS_INFO("[serviceInit] Received pose: frame_id=%s, x=%.2f, y=%.2f, z=%.2f",
-             req.pose_with_cov.header.frame_id.c_str(),
-             req.pose_with_cov.pose.pose.position.x,
-             req.pose_with_cov.pose.pose.position.y,
-             req.pose_with_cov.pose.pose.position.z);
-    geometry_msgs::TransformStamped transform;
-    if (!vehicle::localization::utils::getTransform(
-            tfBuffer, req.pose_with_cov.header.frame_id, "enu", transform))
-    {
-        ROS_ERROR("[serviceInit] Failed to get transform from %s to map",
-                  req.pose_with_cov.header.frame_id.c_str());
-        return false;
-    }
-    ROS_INFO("[serviceInit]Transform from %s to enu: trans_x=%.2f, trans_y=%.2f, trans_z=%.2f, rot_x=%.2f, rot_y=%.2f, rot_z=%.2f, rot_w=%.2f",
-             req.pose_with_cov.header.frame_id.c_str(),
-             transform.transform.translation.x,
-             transform.transform.translation.y,
-             transform.transform.translation.z,
-             transform.transform.rotation.x,
-             transform.transform.rotation.y,
-             transform.transform.rotation.z,
-             transform.transform.rotation.w);
-    geometry_msgs::PoseWithCovarianceStamped map_tf_initial_pose;
-    tf2::doTransform(req.pose_with_cov, map_tf_initial_pose, transform);
-    ROS_INFO("[serviceInit] Initial pose: x=%.2f, y=%.2f, z=%.2f, frame_id=%s",
-             map_tf_initial_pose.pose.pose.position.x,
-             map_tf_initial_pose.pose.pose.position.y,
-             map_tf_initial_pose.pose.pose.position.z,
-             map_tf_initial_pose.header.frame_id.c_str());
-    map_tf_initial_pose.header.frame_id = "enu";
-    auto [pose_with_cov, score] = vehicle::localization::monte::alignUsingMonteCarloTPE(
-        object_pre_, map_tf_initial_pose, params_, marker_pub_, points_monte_aligned_pub);
-    if (!vehicle::localization::utils::isValidPose(pose_with_cov))
-    {
-        ROS_ERROR("[serviceInit] Monte Carlo alignment failed to produce valid result");
-        return false;
-    }
-    if (score > 4.0)
-    {
-        init_monte_.publish(pose_with_cov);
-        res.pose_with_cov = pose_with_cov;
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-}
-
-void Preprocessing::points_callback(const sensor_msgs::PointCloud2ConstPtr &points_msg)
-{
-    auto start = std::chrono::high_resolution_clock::now();
-    pcl::PointCloud<PointT>::Ptr pcl_cloud(new pcl::PointCloud<PointT>());
-    pcl::fromROSMsg(*points_msg, *pcl_cloud);
-
-    if (pcl_cloud->empty())
-    {
-        ROS_WARN("cloud is empty!!");
-        return;
-    }
-
-    // Apply voxel grid filter first
-    auto filtered = vehicle::localization::utils::voxelGridFilter<pcl::PointXYZI>(pcl_cloud, filter_point_);
-    if (!filtered)
-    {
-        ROS_WARN("Voxel grid filtering failed!");
-        return;
-    }
-
-    std::lock_guard<std::mutex> lock(monte_init_);
-
-    // Check if transform is available
-    if (tfBuffer.canTransform("base_link", points_msg->header.frame_id, ros::Time(0)))
-    {
-        try
-        {
-            // Get transform from lidar frame to base_link
-            geometry_msgs::TransformStamped transform_stamped =
-                tfBuffer.lookupTransform("base_link", points_msg->header.frame_id, ros::Time(0));
-
-            // Manual conversion from TransformStamped to Eigen matrix
-            Eigen::Matrix4f transform_matrix = Eigen::Matrix4f::Identity();
-            /*Transform 4x4:
-                 [R11  R12  R13  Tx]     R = Rotation matrix (3x3)
-             T = [R21  R22  R23  Ty]     T = Translation vector (3x1)
-                 [R31  R32  R33  Tz]     [0 0 0 1] = Homogeneous row
-                 [ 0    0    0   1 ]
-            */
-            // Translation
-            transform_matrix(0, 3) = transform_stamped.transform.translation.x;
-            transform_matrix(1, 3) = transform_stamped.transform.translation.y;
-            transform_matrix(2, 3) = transform_stamped.transform.translation.z;
-
-            // Rotation (quaternion to rotation matrix)
-            double x = transform_stamped.transform.rotation.x;
-            double y = transform_stamped.transform.rotation.y;
-            double z = transform_stamped.transform.rotation.z;
-            double w = transform_stamped.transform.rotation.w;
-
-            // Convert quaternion to rotation matrix
-            transform_matrix(0, 0) = 1 - 2 * (y * y + z * z);
-            transform_matrix(0, 1) = 2 * (x * y - w * z);
-            transform_matrix(0, 2) = 2 * (x * z + w * y);
-
-            transform_matrix(1, 0) = 2 * (x * y + w * z);
-            transform_matrix(1, 1) = 1 - 2 * (x * x + z * z);
-            transform_matrix(1, 2) = 2 * (y * z - w * x);
-
-            transform_matrix(2, 0) = 2 * (x * z - w * y);
-            transform_matrix(2, 1) = 2 * (y * z + w * x);
-            transform_matrix(2, 2) = 1 - 2 * (x * x + y * y);
-
-            // Transform point cloud to base_link frame
-            pcl::PointCloud<PointT>::Ptr transformed_cloud(new pcl::PointCloud<PointT>());
-            pcl::transformPointCloud(*filtered, *transformed_cloud, transform_matrix);
-
-            // Update header frame_id
-            transformed_cloud->header.frame_id = "base_link";
-
-            // Use transformed cloud for Monte Carlo
-            object_pre_->setInputSource(transformed_cloud);
-
-            ROS_INFO_THROTTLE(5.0, "Point cloud transformed from %s to base_link. Size: %zu",
-                              points_msg->header.frame_id.c_str(), transformed_cloud->size());
-        }
-        catch (tf2::TransformException &ex)
-        {
-            ROS_WARN("Transform lookup failed: %s", ex.what());
-            return;
-        }
-    }
-    else
-    {
-        ROS_WARN_THROTTLE(5.0, "Cannot find transform from %s to base_link",
-                          points_msg->header.frame_id.c_str());
-
-        // Fallback: use original filtered cloud (not recommended for production)
-        object_pre_->setInputSource(filtered);
     }
 }
 pcl::PointCloud<pcl::PointXYZI>::Ptr Preprocessing::tf_pointcloud_enu(
