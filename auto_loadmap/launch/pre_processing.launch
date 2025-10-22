@@ -1,8 +1,7 @@
 <launch>
   <node pkg="auto_loadmap" type="preprocessing" name="preprocessing" output="screen">
-    <param name="radius_max" value="20.0" />
+    <param name="radius_max" value="50.0" />
     <param name="downsample_resolution" value="0.5" />
-    <param name="map_frame" value="enu" />
     <param name="filter_point_lidar" value="3.0" />
 
 

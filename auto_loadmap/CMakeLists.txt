@@ -14,7 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   pcl_ros
   pcl_conversions
-  vehicle_localization_util
+
   # ndt_omp
 )
 
@@ -24,7 +24,7 @@ find_package(YAML-CPP REQUIRED)
 
 catkin_package(
   INCLUDE_DIRS include
-  CATKIN_DEPENDS roscpp sensor_msgs vehicle_localization_util pcl_conversions tf2_eigen
+  CATKIN_DEPENDS roscpp sensor_msgs  pcl_conversions tf2_eigen
 )
 
 include_directories(
@@ -64,7 +64,7 @@ install(
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
-install(FILES include/auto_update.h include/pre_processing.h
+install(FILES include/auto_loadmap/auto_update.h include/auto_loadmap/pre_processing.h
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
 )
 

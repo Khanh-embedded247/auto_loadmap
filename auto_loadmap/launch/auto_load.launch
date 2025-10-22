@@ -1,13 +1,12 @@
 <launch>
-  <arg name="map_path" value="/workspaces/fusion_ekf/Localization_Indoor/src/auto_loadmap/map/config" />
+  <arg name="map_path" value="/root/phenikaax_pilot/src/pnkx_core/pnkx_localization/auto_loadmap/map/district" />
   
-  <node pkg="auto_loadmap" type="auto_load_map" name="auto_load_map" output="screen" >
+  <node pkg="auto_loadmap" type="auto_load_map" name="auto_load_map" output="log" >
     <param name="map_config_path" value="$(arg map_path)"/>
     <param name="base_pcd_path" value="$(arg map_path)" />
     <!-- <remap from="gnss_pose_cov" to="/sensing/gnss/pose_with_covariance" /> -->
-    <remap from="gnss_pose_cov" to="/gnss_pose_cov" />
-
+    <remap from="gnss_pose_cov" to="/sensing/gnss/pose" />
+    <remap from="current_position" to="/localization/pose_twist_fusion_filter/pose" />
   </node>
   
 </launch>
-

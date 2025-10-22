@@ -1,0 +1,14 @@
+district: vf_haiphong
+areas:
+  - area: Area_C
+    area_boundaries:
+      min: [694610, 2300768, -2.220011]
+      max: [695372.4, 2301863, 34.75357]
+  - area: Area_B
+    area_boundaries:
+      min: [694331.7, 2299819, -3.500688]
+      max: [695420.9, 2300768, 36.27988]
+  - area: Area_A
+    area_boundaries:
+      min: [693242.5, 2299672, -1.03671]
+      max: [694331.7, 2300906, 34.79799]

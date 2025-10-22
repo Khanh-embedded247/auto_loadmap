@@ -1,7 +1,7 @@
 # **Auto Loadmap for Vehicle** 😊
 ## 🎯 **Main features **
 - ✅ Load maps on demand based on current location   
-- ✅ Lazy loading và caching thông minh 
+- ✅ Smart loading and caching
 - ✅ Automatically update map when location changes
 
 ---
@@ -18,28 +18,39 @@ MIN_POINTS_THRESHOLD = 10000
 
 ```bash
 <!--base_path=/root/simulation/src/pnkx_map/config-->
-base_path/
-├── hadong/
-│   ├── pcd/
-│   │   ├── file1.pcd
-│   │   ├── file2.pcd
+├── district_boundaries.yaml         
+├── Hungyen/
+│   ├── areas_boundaries.yaml       
+│   ├── Area_A/
+│   │   ├── map_boundaries.yaml     
+│   │   ├── hungyen_a1.pcd
+│   │   ├── hungyen_a2.pcd
 │   │   └── ...
-│   ├── map_boundaries.yaml/
-|
-├── thanhxuan/
-│   ├── pcd/
-│   │   ├── file1.pcd
-│   │   ├── file2.pcd
+│   ├── Area_B/
+│   │   ├── map_boundaries.yaml     
+│   │   ├── hungyen_b1.pcd
+│   │   ├── hungyen_b2.pcd
 │   │   └── ...
-│   ├── map_boundaries.yaml/
-|
-├── namtuliem/
-│   ├── pcd/
-│   │   ├── file1.pcd
-│   │   ├── file2.pcd
+│   └── Area_C/
+│       ├── map_boundaries.yaml     
+│       ├── hungyen_c1.pcd
+│       └── ...
+├── Hadong/
+│   ├── areas_boundaries.yaml       
+│   ├── Area_A/
+│   │   ├── map_boundaries.yaml      
+│   │   ├── hadong_a1.pcd
+│   │   ├── hadong_a2.pcd
 │   │   └── ...
-│   ├── map_boundaries.yaml/
-|.............
+│   ├── Area_B/
+│   │   ├── map_boundaries.yaml      
+│   │   ├── hadong_b1.pcd
+│   │   ├── hadong_b2.pcd
+│   │   └── ...
+│   └── Area_C/
+│       ├── map_boundaries.yaml     
+│       ├── hadong_c1.pcd
+│       └── ...
 ```
 ***Prerequisite: enter the boundaries of major areas: Ha Dong, Thanh Hoa, Xuan, Hanoi***
 
@@ -61,7 +72,7 @@ base_path/
 ```bash
 - Service: 
 -── points_update_service : Send pointclouds of maps to add or remove
-├── monte_align_srv : Find the initial starting point
+
 ```
 
 

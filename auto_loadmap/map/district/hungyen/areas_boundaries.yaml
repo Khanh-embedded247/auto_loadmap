@@ -1,0 +1,18 @@
+district: hungyen
+areas:
+  - area: Area_C
+    area_boundaries:
+      min: [175.567, 17024.5, 15.73865]
+      max: [1712.243, 18794.99, 60.81086]
+  - area: Area_B
+    area_boundaries:
+      min: [1712.243, 15276.45, 15.54939]
+      max: [3379.773, 17024.5, 58.9736]
+  - area: Area_D
+    area_boundaries:
+      min: [1712.243, 17024.5, 16.27654]
+      max: [2539.142, 18324.96, 57.78571]
+  - area: Area_A
+    area_boundaries:
+      min: [44.69067, 15254, 10.56401]
+      max: [1712.243, 17024.5, 57.19786]
